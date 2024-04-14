@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gemini-ng"
+dynamic = ["version"]
+description = "Next-generation Gemini API Client"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "./LICENSE" }
+keywords = ["Gemini"]
+authors = [
+  { name = "Ming Yang", email = "ymviv@qq.com" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: Implementation :: CPython",
+]
+dependencies = [
+    "google-api-python-client>=2.125.0",
+    "requests>=2.31.0",
+    "pydantic>=2.7.0",
+]
+
+[project.urls]
+Documentation = "https://github.com/vivym/gemini-ng#readme"
+Issues = "https://github.com/vivym/gemini-ng/issues"
+Source = "https://github.com/vivym/gemini-ng"
+
+[tool.setuptools.dynamic]
+version = {attr = "gemini_ng.__version__"}
