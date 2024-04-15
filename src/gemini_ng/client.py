@@ -1,8 +1,10 @@
 import os
+import tempfile
 from pathlib import Path
 
 import requests
 import googleapiclient.discovery as g_discovery
+from tqdm import tqdm
 
 from .chat import ChatSession
 from .schemas import (
@@ -20,6 +22,7 @@ from .schemas import (
     UploadFile,
     UploadedFile,
 )
+from .utils.video import extract_video_frames
 
 
 class GeminiClient:
@@ -141,11 +144,25 @@ class GeminiClient:
 
         return uploaded_file.to_file_part()
 
-    def upload_video(self, video_path: str) -> VideoPart:
+    def upload_video(self, video_path: str, verbose: bool = False) -> VideoPart:
         if not Path(video_path).exists():
             raise FileNotFoundError(f"Video file not found: {video_path}")
 
-        raise NotImplementedError("Video upload is not yet implemented")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            frame_paths = extract_video_frames(video_path, save_dir=temp_dir, sample_fps=1)
+
+            image_parts = [
+                self.upload_image(frame_path)
+                for frame_path in tqdm(frame_paths, disable=not verbose, desc="Uploading video frames")
+            ]
+
+        return VideoPart(
+            time_spans=[
+                TextPart(text=f"{i // 60:02d}:{i % 60:02d}")
+                for i in range(len(image_parts))
+            ],
+            frames=image_parts,
+        )
 
     def _upload_file(self, file: UploadFile) -> UploadedFile:
         rsp = (
