@@ -34,6 +34,12 @@ class GenerationCandidate(BaseModel):
         None, alias="safetyRatings", description="Safety ratings of the content."
     )
 
+    @property
+    def text(self) -> str:
+        if self.content is None:
+            raise ValueError("No content to get text from. " + str(self.model_dump_json()))
+        return "".join(part.text for part in self.content.parts)
+
 
 class GenerationResponse(BaseModel):
     candidates: list[GenerationCandidate] = Field(

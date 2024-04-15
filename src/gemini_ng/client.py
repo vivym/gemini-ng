@@ -1,6 +1,6 @@
+import hashlib
 import os
 import tempfile
-from pathlib import Path
 
 import requests
 import googleapiclient.discovery as g_discovery
@@ -22,6 +22,8 @@ from .schemas import (
     UploadFile,
     UploadedFile,
 )
+from .utils.cache import get_cache_instance
+from .utils.error import handle_http_exception
 from .utils.video import extract_video_frames
 
 
@@ -31,10 +33,12 @@ class GeminiClient:
         api_key: str | None = None,
         version: str = "v1beta",
     ):
-        api_key = api_key or os.getenv("GEMINI_API_KEY")
+        api_key = api_key or os.getenv("GEMINI_NG_API_KEY")
 
         if api_key is None:
-            raise ValueError("Gemini API (`GEMINI_API_KEY`) key must be provided")
+            raise ValueError("Gemini API (`GEMINI_NG_API_KEY`) key must be provided")
+
+        self.api_key = api_key
 
         rsp = requests.get(
             "https://generativelanguage.googleapis.com/$discovery/rest",
@@ -53,10 +57,10 @@ class GeminiClient:
         if isinstance(prompt, str):
             prompt = [prompt]
 
-        for part in prompt:
+        for i, part in enumerate(prompt):
             if isinstance(part, str):
-                parts.append(TextPart(text=f"\n{part}\n"))  # Take care of the newline more elegantly
-            elif isinstance(part, (FilePart, ImagePart)):
+                parts.append(TextPart(text=part if i == 0 else "\n" + part))
+            elif isinstance(part, (TextPart, FilePart, ImagePart)):
                 parts.append(part)
             elif isinstance(part, VideoPart):
                 parts.extend(part.content_parts())
@@ -65,6 +69,27 @@ class GeminiClient:
 
         return parts
 
+    @handle_http_exception
+    def get_token_count(self, model: str, prompt: GenerationRequest | list) -> int:
+        if isinstance(prompt, GenerationRequest):
+            request = prompt
+        else:
+            parts = self.normalize_prompt(prompt)
+            request = GenerationRequest(contents=[GenerationRequestParts(parts=parts)])
+
+        rsp = (
+            self.genai_service
+                .models()
+                .getTokenCount(
+                    model=model,
+                    body=request.model_dump(by_alias=True, exclude_none=True),
+                )
+                .execute()
+        )
+
+        return rsp["totalTokens"]
+
+    @handle_http_exception
     def generate(
         self,
         model: str,
@@ -137,15 +162,20 @@ class GeminiClient:
         return request
 
     def upload_image(self, image_path: str) -> ImagePart:
-        if not Path(image_path).exists():
+        if not os.path.exists(image_path):
             raise FileNotFoundError(f"Image file not found: {image_path}")
 
-        uploaded_file = self._upload_file(UploadFile.from_path(image_path))
+        uploaded_file = self._upload_file(
+            UploadFile.from_path(
+                image_path,
+                body={"file": {"displayName": os.path.basename(image_path)}},
+            )
+        )
 
         return uploaded_file.to_file_part()
 
     def upload_video(self, video_path: str, verbose: bool = False) -> VideoPart:
-        if not Path(video_path).exists():
+        if not os.path.exists(video_path):
             raise FileNotFoundError(f"Video file not found: {video_path}")
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -164,7 +194,21 @@ class GeminiClient:
             frames=image_parts,
         )
 
+    @handle_http_exception
     def _upload_file(self, file: UploadFile) -> UploadedFile:
+        m = hashlib.sha256()
+        with open(file.file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                m.update(chunk)
+
+        sha256_hash = m.hexdigest()
+        cache_key = f"{self.api_key}_file_{sha256_hash}"
+
+        cache = get_cache_instance()
+        cached_obj = cache.get(cache_key)
+        if cached_obj:
+            return UploadedFile.model_validate(cached_obj)
+
         rsp = (
             self.genai_service.media()
             .upload(
@@ -175,7 +219,11 @@ class GeminiClient:
             .execute()
         )
 
-        return UploadedFile.model_validate(rsp["file"])
+        uploaded_file = UploadedFile.model_validate(rsp["file"])
+
+        cache.set(cache_key, uploaded_file.model_dump(by_alias=True, exclude_none=True))
+
+        return uploaded_file
 
     def _upload_files(self, *files: list[UploadFile]) -> list[UploadedFile]:
         return [self._upload_file(file) for file in files]
