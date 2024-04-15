@@ -178,13 +178,33 @@ class GeminiClient:
         if not os.path.exists(video_path):
             raise FileNotFoundError(f"Video file not found: {video_path}")
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            frame_paths = extract_video_frames(video_path, save_dir=temp_dir, sample_fps=1)
+        if os.path.isdir(video_path):
+            frame_paths = os.listdir(video_path)
+            frame_paths = filter(
+                lambda x: x.lower().endswith((".jpg", ".jpeg", ".png")), frame_paths
+            )
+            frame_paths = sorted(
+                frame_paths, key=lambda x: int(os.path.splitext(x)[0])
+            )
 
             image_parts = [
-                self.upload_image(frame_path)
-                for frame_path in tqdm(frame_paths, disable=not verbose, desc="Uploading video frames")
+                self.upload_image(os.path.join(video_path, frame_path))
+                for frame_path in tqdm(
+                    frame_paths, disable=not verbose, desc="Uploading video frames"
+                )
             ]
+        else:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                frame_paths = extract_video_frames(
+                    video_path, save_dir=temp_dir, sample_fps=1
+                )
+
+                image_parts = [
+                    self.upload_image(frame_path)
+                    for frame_path in tqdm(
+                        frame_paths, disable=not verbose, desc="Uploading video frames"
+                    )
+                ]
 
         return VideoPart(
             time_spans=[
