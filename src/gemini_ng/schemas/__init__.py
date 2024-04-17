@@ -3,7 +3,7 @@ from .part import TextPart, FilePart, ImagePart, VideoPart
 from .request import (
     ChatMessage,
     ChatHistory,
-    SafetySettings,
+    SafetySetting,
     GenerationRequest,
     GenerationRequestParts,
     GenerationConfig,

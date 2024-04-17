@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from .schemas import (
-    ChatMessage, ChatHistory, GenerationConfig, GenerationResponse, SafetySettings
+    ChatMessage, ChatHistory, GenerationConfig, GenerationResponse, SafetySetting
 )
 
 
@@ -16,7 +16,7 @@ class ChatSession:
         model: str,
         history: list[ChatMessage] | None = None,
         generation_config: GenerationConfig | dict | None = None,
-        safety_settings: SafetySettings | dict | None = None,
+        safety_settings: list[SafetySetting | dict] | None = None,
     ):
         self.client = client
         self.model = model
@@ -28,7 +28,7 @@ class ChatSession:
         self,
         message: list | str,
         generation_config: GenerationConfig | dict | None = None,
-        safety_settings: SafetySettings | dict | None = None,
+        safety_settings: list[SafetySetting | dict] | None = None,
     ) -> GenerationResponse:
         parts = self.client.normalize_prompt(message)
         self.history.append(ChatMessage(role="user", parts=parts))

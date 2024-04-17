@@ -14,7 +14,7 @@ from .schemas import (
     GenerationRequest,
     GenerationRequestParts,
     GenerationResponse,
-    SafetySettings,
+    SafetySetting,
     TextPart,
     ImagePart,
     FilePart,
@@ -95,7 +95,7 @@ class GeminiClient:
         model: str,
         prompt: GenerationRequest | ChatHistory | list | str,
         generation_config: GenerationConfig | dict | None = None,
-        safety_settings: SafetySettings | dict | None = None,
+        safety_settings: list[SafetySetting | dict] | None = None,
     ) -> GenerationResponse:
         generation_request = self._prepare_generation_request(
             prompt,
@@ -120,7 +120,7 @@ class GeminiClient:
         model: str,
         history: list[ChatMessage] | ChatHistory | None = None,
         generation_config: GenerationConfig | dict | None = None,
-        safety_settings: SafetySettings | dict | None = None,
+        safety_settings: list[SafetySetting | dict] | None = None,
     ) -> ChatSession:
         if isinstance(history, ChatHistory):
             history = history.messages
@@ -137,7 +137,7 @@ class GeminiClient:
         self,
         prompt: GenerationRequest | ChatHistory | list | str,
         generation_config: GenerationConfig | dict | None = None,
-        safety_settings: SafetySettings | dict | None = None,
+        safety_settings: list[SafetySetting | dict] | None = None,
     ) -> GenerationRequest:
         if isinstance(prompt, GenerationRequest):
             request = prompt
@@ -155,8 +155,12 @@ class GeminiClient:
             request.generation_config = generation_config
 
         if safety_settings is not None:
-            if not isinstance(safety_settings, SafetySettings):
-                safety_settings = SafetySettings.model_validate(safety_settings)
+            safety_settings = [
+                safety_setting
+                if isinstance(safety_setting, SafetySetting)
+                else SafetySetting.model_validate(safety_setting)
+                for safety_setting in safety_settings
+            ]
             request.safety_settings = safety_settings
 
         return request

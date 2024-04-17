@@ -74,7 +74,7 @@ class GenerationConfig(BaseModel):
     )
 
 
-class SafetySettings(BaseModel):
+class SafetySetting(BaseModel):
     category: HarmCategory | None = Field(
         None, description="The category of harmful content to block."
     )
@@ -93,6 +93,6 @@ class GenerationRequest(BaseModel):
         None, alias="generationConfig", description="Generation configuration."
     )
 
-    safety_settings: SafetySettings | dict | None = Field(
+    safety_settings: list[SafetySetting | dict] | None = Field(
         None, alias="safetySettings", description="Safety settings."
     )
