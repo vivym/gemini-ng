@@ -9,17 +9,6 @@ def extract_video_frames(video_path: str, save_dir: str, sample_fps: int = 1) ->
     video_stream = container.streams.video[0]
 
     fps = video_stream.guessed_rate.numerator / video_stream.guessed_rate.denominator
-    total_frames = video_stream.frames
-    if total_frames == 0:
-        duration = video_stream.duration
-
-        if duration is None:
-            duration = container.duration
-            time_base = 1 / av.time_base
-        else:
-            time_base = video_stream.time_base.numerator / video_stream.time_base.denominator
-
-        total_frames = math.floor(fps * duration * time_base)
 
     frame_interval = fps / sample_fps
 
