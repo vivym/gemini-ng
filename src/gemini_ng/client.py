@@ -2,6 +2,7 @@ import hashlib
 import os
 import tempfile
 
+import httplib2
 import requests
 import googleapiclient.discovery as g_discovery
 from tqdm import tqdm
@@ -21,6 +22,7 @@ from .schemas import (
     VideoPart,
     UploadFile,
     UploadedFile,
+    ProxyInfo,
 )
 from .utils.cache import get_cache_instance
 from .utils.error import handle_http_exception
@@ -32,6 +34,8 @@ class GeminiClient:
         self,
         api_key: str | None = None,
         version: str = "v1beta",
+        proxy_info: ProxyInfo | dict | None = None,
+        timeout: int | None = None,
     ):
         api_key = api_key or os.getenv("GEMINI_NG_API_KEY")
 
@@ -46,8 +50,16 @@ class GeminiClient:
         )
         rsp.raise_for_status()
 
+        if proxy_info is not None:
+            if not isinstance(proxy_info, ProxyInfo):
+                proxy_info = ProxyInfo.model_validate(proxy_info)
+
+            proxy_info = proxy_info.to_httplib2_proxy_info()
+
+        http = httplib2.Http(timeout=timeout, proxy_info=proxy_info)
+
         self.genai_service = g_discovery.build_from_document(
-            rsp.content, developerKey=api_key
+            rsp.content, developerKey=api_key, http=http
         )
 
     @staticmethod

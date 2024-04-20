@@ -1,5 +1,6 @@
 from .harm import HarmCategory, HarmBlockThreshold, HarmProbability
 from .part import TextPart, FilePart, ImagePart, VideoPart
+from .proxy import ProxyInfo
 from .request import (
     ChatMessage,
     ChatHistory,
